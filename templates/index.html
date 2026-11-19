@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="es" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoVolt CFE • Plataforma de Gestión y Consumo Energético</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-canvas: #060913;
+            --bg-sidebar: #0b101d;
+            --bg-surface: #0f1626;
+            --bg-surface-hover: #151e33;
+            --bg-input: #172036;
+            --border-line: rgba(148, 163, 184, 0.12);
+            --border-glow: rgba(34, 211, 238, 0.35);
+            --cyan: #22d3ee;
+            --blue: #3b82f6;
+            --emerald: #10b981;
+            --amber: #f59e0b;
+            --rose: #f43f5e;
+            --text-main: #f1f5f9;
+            --text-muted: #8b9bb4;
+            --sidebar-width: 265px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-canvas);
+            background-image: 
+                radial-gradient(ellipse 80% 50% at 50% -20%, rgba(14, 165, 233, 0.15), transparent),
+                radial-gradient(ellipse 60% 40% at 95% 10%, rgba(16, 185, 129, 0.08), transparent);
+            color: var(--text-main);
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* --- SIDEBAR FIJA --- */
+        .app-sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border-line);
+            display: flex;
+            flex-direction: column;
+            z-index: 1030;
+            transition: transform 0.3s ease;
+        }
+
+        .brand-box {
+            padding: 1.4rem 1.5rem;
+            border-bottom: 1px solid var(--border-line);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-logo {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #22d3ee 0%, #0284c7 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #060913;
+            font-size: 1.25rem;
+            box-shadow: 0 0 20px rgba(34, 211, 238, 0.35);
+        }
+
+        .nav-section-label {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 1.1px;
+            color: #52627d;
+            font-weight: 700;
+            padding: 1.25rem 1.5rem 0.5rem 1.5rem;
+        }
+
+        .sidebar-nav {
+            padding: 0 0.85rem;
+            list-style: none;
+            margin: 0;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            padding: 0.68rem 0.9rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            border-radius: 10px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-link:hover, .sidebar-link.active {
+            background: rgba(34, 211, 238, 0.1);
+            color: var(--cyan);
+        }
+
+        .sidebar-link.active {
+            border-left: 3px solid var(--cyan);
+        }
+
+        .tarifa-widget {
+            margin: auto 1rem 1rem 1rem;
+            padding: 1rem;
+            background: linear-gradient(160deg, rgba(15, 22, 38, 0.95), rgba(14, 116, 144, 0.18));
+            border: 1px solid rgba(34, 211, 238, 0.22);
+            border-radius: 14px;
+            font-size: 0.78rem;
+        }
+
+        /* --- CONTENEDOR PRINCIPAL --- */
+        .app-wrapper {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- TOPBAR EJECUTIVA --- */
+        .app-topbar {
+            position: sticky;
+            top: 0;
+            z-index: 1020;
+            background: rgba(6, 9, 19, 0.82);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-line);
+            padding: 0.9rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .status-live {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #34d399;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 50px;
+        }
+
+        .pulse-dot {
+            width: 7px;
+            height: 7px;
+            background: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #10b981;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(1.3); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        /* --- BENTO CARDS --- */
+        .bento-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-line);
+            border-radius: 18px;
+            padding: 1.4rem;
+            position: relative;
+            transition: border-color 0.25s ease, transform 0.25s ease;
+        }
+
+        .bento-card:hover {
+            border-color: rgba(148, 163, 184, 0.28);
+        }
+
+        .kpi-metric {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.75rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: #ffffff;
+        }
+
+        .kpi-badge-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.15rem;
+        }
+
+        /* --- TABS DEL WORKSPACE --- */
+        .nav-pills-pro {
+            background: var(--bg-canvas);
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid var(--border-line);
+        }
+
+        .nav-pills-pro .nav-link {
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            font-weight: 700;
+            border-radius: 9px;
+            padding: 0.55rem 0.85rem;
+            transition: all 0.2s ease;
+        }
+
+        .nav-pills-pro .nav-link.active {
+            background: linear-gradient(135deg, #22d3ee 0%, #0284c7 100%);
+            color: #060913;
+            box-shadow: 0 4px 12px rgba(34, 211, 238, 0.25);
+        }
+
+        /* --- FORMULARIOS --- */
+        .form-control, .form-select {
+            background-color: var(--bg-input);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            color: #f8fafc;
+            border-radius: 10px;
+            font-size: 0.88rem;
+            padding: 0.6rem 0.85rem;
+        }
+
+        .form-control:focus, .form-select:focus {
+            background-color: #1d2842;
+            border-color: var(--cyan);
+            box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.15);
+            color: #ffffff;
+        }
+
+        .form-label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin-bottom: 0.35rem;
+        }
+
+        .btn-primary-pro {
+            background: linear-gradient(135deg, #22d3ee 0%, #0284c7 100%);
+            color: #060913;
+            font-weight: 800;
+            border: none;
+            border-radius: 10px;
+            padding: 0.7rem 1.2rem;
+            font-size: 0.88rem;
+            box-shadow: 0 4px 18px rgba(34, 211, 238, 0.25);
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary-pro:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 24px rgba(34, 211, 238, 0.42);
+            color: #060913;
+        }
+
+        /* --- TABLA DE ALTA DENSIDAD --- */
+        .table-enterprise {
+            --bs-table-bg: transparent;
+            --bs-table-color: #e2e8f0;
+            --bs-table-border-color: rgba(148, 163, 184, 0.1);
+            --bs-table-hover-bg: rgba(34, 211, 238, 0.04);
+        }
+
+        .table-enterprise thead th {
+            background: rgba(6, 9, 19, 0.55);
+            color: #7dd3fc;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-weight: 700;
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(34, 211, 238, 0.2);
+        }
+
+        .table-enterprise tbody td {
+            padding: 11px 14px;
+            font-size: 0.88rem;
+        }
+
+        .device-thumb {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--bg-input);
+            border: 1px solid var(--border-line);
+            padding: 5px;
+            object-fit: cover;
+        }
+
+        .chip-kwh {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(34, 211, 238, 0.12);
+            color: #38bdf8;
+            border: 1px solid rgba(34, 211, 238, 0.25);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .chip-mxn {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(16, 185, 129, 0.12);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        /* --- RECIBO OFICIAL CFE --- */
+        .cfe-document {
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 14px;
+            overflow: hidden;
+            background: #0b101d;
+        }
+
+        .cfe-doc-header {
+            background: linear-gradient(90deg, #065f46 0%, #059669 100%);
+            color: #ffffff;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+        }
+
+        .cfe-doc-header th { padding: 10px 14px; border: none; }
+        .cfe-row td { padding: 9px 14px; font-size: 0.85rem; border-bottom: 1px solid rgba(148, 163, 184, 0.08); }
+        .cfe-row-alt { background: rgba(23, 32, 54, 0.45); }
+
+        .cfe-spectrum {
+            height: 12px;
+            width: 100%;
+            border-radius: 6px;
+            background: linear-gradient(90deg, #10b981 0%, #84cc16 32%, #facc15 55%, #f97316 78%, #ef4444 100%);
+            position: relative;
+        }
+
+        .cfe-pointer {
+            position: absolute;
+            top: -10px;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 9px solid #ffffff;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+        }
+
+        /* --- RESPONSIVE MOBILE --- */
+        @media (max-width: 991.98px) {
+            .app-sidebar { transform: translateX(-100%); }
+            .app-sidebar.open { transform: translateX(0); }
+            .app-wrapper { margin-left: 0; }
+        }
+
+        @media print {
+            .app-sidebar, .app-topbar, .no-imprimir { display: none !important; }
+            .app-wrapper { margin-left: 0 !important; }
+            body { background: #ffffff !important; color: #000000 !important; }
+            .bento-card, .cfe-document { background: #ffffff !important; border: 1px solid #cbd5e1 !important; color: #000000 !important; }
+            .kpi-metric, td, th { color: #000000 !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR DE NAVEGACIÓN -->
+    <aside class="app-sidebar no-imprimir" id="sidebarMenu">
+        <div class="brand-box">
+            <div class="brand-logo">
+                <i class="bi bi-lightning-charge-fill"></i>
+            </div>
+            <div>
+                <div class="fw-extrabold text-white" style="font-weight: 800; font-size: 1.02rem; letter-spacing: -0.3px;">EcoVolt <span class="text-info">CFE</span></div>
+                <div class="text-secondary" style="font-size: 0.7rem;">CECYTEJ • Programación 5.º</div>
+            </div>
+        </div>
+
+        <div class="nav-section-label">Navegación</div>
+        <ul class="sidebar-nav">
+            <li><a href="#sec-resumen" class="sidebar-link active"><i class="bi bi-grid-1x2-fill"></i> Panel General</a></li>
+            <li><a href="#sec-inventario" class="sidebar-link"><i class="bi bi-cpu-fill"></i> Equipos y Simulador</a></li>
+            <li><a href="#sec-facturacion" class="sidebar-link"><i class="bi bi-receipt-cutoff"></i> Recibo CFE y Gráfica</a></li>
+            <li><a href="#sec-soporte" class="sidebar-link"><i class="bi bi-chat-square-text-fill"></i> Aclaraciones y Soporte</a></li>
+        </ul>
+
+        <div class="nav-section-label">Herramientas</div>
+        <ul class="sidebar-nav">
+            <li><a href="/exportar_csv" class="sidebar-link enlace-interno"><i class="bi bi-file-earmark-spreadsheet-fill text-success"></i> Exportar Reporte CSV</a></li>
+            <li><a href="javascript:window.print()" class="sidebar-link"><i class="bi bi-printer-fill text-info"></i> Imprimir / Guardar PDF</a></li>
+            <li>
+                <a href="https://app.cfe.mx/Aplicaciones/CCFE/Tarifas/TarifasCRECasa/Tarifas/Tarifa1.aspx" target="_blank" rel="noopener noreferrer" class="sidebar-link">
+                    <i class="bi bi-box-arrow-up-right text-warning"></i> Portal Oficial CFE
+                </a>
+            </li>
+        </ul>
+
+        <!-- WIDGET TARIFAS EN SIDEBAR -->
+        <div class="tarifa-widget">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-bold text-info"><i class="bi bi-sliders me-1"></i> Tarifa 01 Jalisco</span>
+                <span class="badge bg-info bg-opacity-10 text-info">Vigente</span>
+            </div>
+            <div class="d-flex justify-content-between text-secondary mb-1">
+                <span>Básico (0–75):</span>
+                <span class="font-mono text-white">${{ tarifa.costo_basico }}</span>
+            </div>
+            <div class="d-flex justify-content-between text-secondary mb-1">
+                <span>Intermedio (76–140):</span>
+                <span class="font-mono text-white">${{ tarifa.costo_intermedio }}</span>
+            </div>
+            <div class="d-flex justify-content-between text-secondary">
+                <span>Excedente (&gt;140):</span>
+                <span class="font-mono text-warning">${{ tarifa.costo_excedente }}</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- CONTENEDOR PRINCIPAL -->
+    <div class="app-wrapper">
+        
+        <!-- TOPBAR SUPERIOR -->
+        <header class="app-topbar no-imprimir">
+            <div class="d-flex align-items-center gap-3">
+                <button class="btn btn-sm btn-outline-secondary d-lg-none" onclick="document.getElementById('sidebarMenu').classList.toggle('open')">
+                    <i class="bi bi-list fs-5"></i>
+                </button>
+                <div>
+                    <h6 class="mb-0 fw-bold text-white">Calculadora Web de Consumo Energético</h6>
+                    <small class="text-secondary d-none d-sm-inline">Proyecto Transversal • Esquema Progresivo CFE Jalisco</small>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-3">
+                <span class="status-live d-none d-md-inline-flex">
+                    <span class="pulse-dot"></span> Sesión Temporal Activa
+                </span>
+                <div class="d-flex align-items-center gap-2 px-3 py-1 rounded-pill" style="background: var(--bg-surface); border: 1px solid var(--border-line);">
+                    <i class="bi bi-person-circle text-info"></i>
+                    <span class="small fw-semibold text-white">{{ session['usuario_nombre'] }}</span>
+                </div>
+                <a href="/logout" class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-semibold">
+                    <i class="bi bi-box-arrow-right me-1"></i> Salir
+                </a>
+            </div>
+        </header>
+
+        <!-- CUERPO DEL DASHBOARD -->
+        <main class="p-3 p-md-4 flex-grow-1" id="sec-resumen">
+            
+            <!-- BANNER DE CRÉDITOS DEL EQUIPO -->
+            <div class="bento-card py-2 px-3 mb-4 d-flex flex-wrap justify-content-between align-items-center gap-2" style="background: linear-gradient(90deg, rgba(15, 22, 38, 0.95) 0%, rgba(14, 116, 144, 0.22) 100%);">
+                <div class="small text-secondary">
+                    <span class="badge bg-info text-dark fw-bold me-2">EQUIPO CECYTEJ</span>
+                    <span class="text-light">Evelin Anahi Diaz Urrutia • Selene Rubi Cruz Moyao • Keily Eunice Gonzales Basulto • Brithany Nohemi Peña Gonzales • Fernanda Matilda Jandette Campos • Heily Zamantha Gutierrez Baez</span>
+                </div>
+            </div>
+
+            <!-- FILA 1: 4 TARJETAS KPI ESTILO FINTECH -->
+            <div class="row g-3 mb-4">
+                <div class="col-sm-6 col-xl-3">
+                    <div class="bento-card h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="small fw-semibold text-secondary">Consumo Mensual</span>
+                            <div class="kpi-badge-icon" style="background: rgba(34, 211, 238, 0.12); color: var(--cyan);">
+                                <i class="bi bi-lightning-charge-fill"></i>
+                            </div>
+                        </div>
+                        <div class="kpi-metric mb-1">{{ totales.total_kwh }} <span class="fs-6 text-info">kWh</span></div>
+                        <span class="badge {{ totales.nivel.clase }} rounded-pill" style="font-size: 0.7rem;">{{ totales.nivel.texto }}</span>
+                    </div>
+                </div>
+
+                <div class="col-sm-6 col-xl-3">
+                    <div class="bento-card h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="small fw-semibold text-secondary">Costo Mensual Est.</span>
+                            <div class="kpi-badge-icon" style="background: rgba(16, 185, 129, 0.12); color: var(--emerald);">
+                                <i class="bi bi-currency-dollar"></i>
+                            </div>
+                        </div>
+                        <div class="kpi-metric mb-1">${{ totales.total_costo }} <span class="fs-6 text-success">MXN</span></div>
+                        <small class="text-secondary" style="font-size: 0.75rem;">Tarifa escalonada aplicada</small>
+                    </div>
+                </div>
+
+                <div class="col-sm-6 col-xl-3">
+                    <div class="bento-card h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="small fw-semibold text-secondary">Proyección Próx. Mes</span>
+                            <div class="kpi-badge-icon" style="background: rgba(245, 158, 11, 0.12); color: var(--amber);">
+                                <i class="bi bi-graph-up-arrow"></i>
+                            </div>
+                        </div>
+                        <div class="kpi-metric mb-1">${{ totales.proximo_mes }} <span class="fs-6 text-warning">MXN</span></div>
+                        <small class="text-warning" style="font-size: 0.75rem;">+{{ totales.pct_incremento }}% ajuste inflacionario</small>
+                    </div>
+                </div>
+
+                <div class="col-sm-6 col-xl-3">
+                    <div class="bento-card h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="small fw-semibold text-secondary">Recibo Bimestral CFE</span>
+                            <div class="kpi-badge-icon" style="background: rgba(59, 130, 246, 0.12); color: var(--blue);">
+                                <i class="bi bi-receipt"></i>
+                            </div>
+                        </div>
+                        <div class="kpi-metric mb-1">${{ desglose_recibo.subtotal_energia }} <span class="fs-6 text-primary">MXN</span></div>
+                        <small class="text-secondary" style="font-size: 0.75rem;">Total periodo: <strong class="text-white">{{ desglose_recibo.kwh_total }} kWh</strong></small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FILA 2: WORKSPACE DE REGISTRO / SIMULADOR + INVENTARIO DE EQUIPOS -->
+            <div class="row g-4 mb-4" id="sec-inventario">
+                
+                <!-- MÓDULO CON PESTAÑAS: REGISTRAR vs SIMULAR -->
+                <div class="col-lg-4 no-imprimir">
+                    <div class="bento-card h-100">
+                        <ul class="nav nav-pills nav-fill nav-pills-pro mb-3" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="tab-registrar" data-bs-toggle="pill" data-bs-target="#pane-registrar" type="button" role="tab">
+                                    <i class="bi bi-plus-lg me-1"></i> Registrar Equipo
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link {% if simulacion %}active{% endif %}" id="tab-simular" data-bs-toggle="pill" data-bs-target="#pane-simular" type="button" role="tab">
+                                    <i class="bi bi-calculator me-1"></i> Simulador
+                                </button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content">
+                            <!-- PESTAÑA 1: REGISTRAR -->
+                            <div class="tab-pane fade {% if not simulacion %}show active{% endif %}" id="pane-registrar" role="tabpanel">
+                                <form action="/agregar" method="POST" class="accion-interna">
+                                    <div class="mb-3">
+                                        <label class="form-label">Electrodoméstico</label>
+                                        <input type="text" name="nombre" id="nombreAparato" class="form-control" list="listaElectrodomesticos" placeholder="Busca o escribe un equipo..." autocomplete="off" required>
+                                        <datalist id="listaElectrodomesticos">
+                                            <option value="Refrigerador Duplex / Side by Side" data-watts="500" data-img="https://cdn-icons-png.flaticon.com/512/1261/1261106.png">
+                                            <option value="Refrigerador Convencional" data-watts="250" data-img="https://cdn-icons-png.flaticon.com/512/1261/1261106.png">
+                                            <option value="Congelador Horizontal (Freezer)" data-watts="350" data-img="https://cdn-icons-png.flaticon.com/512/1261/1261106.png">
+                                            <option value="Horno de Microondas" data-watts="1200" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933792.png">
+                                            <option value="Horno Eléctrico de Mesa" data-watts="1500" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933792.png">
+                                            <option value="Horno Eléctrico Empotrable" data-watts="3000" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933792.png">
+                                            <option value="Parrilla de Inducción (1 Quemador)" data-watts="1800" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Parrilla de Inducción (4 Quemadores)" data-watts="7000" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Parrilla Eléctrica Tradicional" data-watts="1500" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Licuadora Doméstica" data-watts="500" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Licuadora Alta Potencia / Vitamix" data-watts="1400" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Freidora de Aire (Air Fryer)" data-watts="1500" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Freidora Eléctrica de Aceite" data-watts="2000" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Cafetera de Goteo" data-watts="800" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933817.png">
+                                            <option value="Cafetera de Cápsulas (Nespresso / Dolce Gusto)" data-watts="1450" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933817.png">
+                                            <option value="Cafetera Espresso Profesional" data-watts="1900" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933817.png">
+                                            <option value="Tostadora de Pan" data-watts="850" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933830.png">
+                                            <option value="Sandwichera / Tostador Doble" data-watts="750" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933830.png">
+                                            <option value="Waffleira Eléctrica" data-watts="1000" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933830.png">
+                                            <option value="Procesador de Alimentos" data-watts="600" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Batidora de Pedestal" data-watts="325" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Batidora de Mano" data-watts="200" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Extractor de Jugos / Juicer" data-watts="800" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Exprimidor de Cítricos Eléctrico" data-watts="80" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Lavavajillas / Lavaplatos" data-watts="1800" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933866.png">
+                                            <option value="Triturador de Desperdicios de Fregadero" data-watts="500" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Cochinilla / Crepera Eléctrica" data-watts="1000" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Olla de Cocción Lenta (Crockpot)" data-watts="200" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Olla Multifuncional a Presión (Instant Pot)" data-watts="1000" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Arrocera Eléctrica" data-watts="500" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Hervidor Eléctrico de Agua / Jarra" data-watts="1500" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933817.png">
+                                            <option value="Cava de Vinos Eléctrica" data-watts="140" data-img="https://cdn-icons-png.flaticon.com/512/1261/1261106.png">
+                                            <option value="Máquina para Hacer Hielo" data-watts="200" data-img="https://cdn-icons-png.flaticon.com/512/1261/1261106.png">
+                                            <option value="Palomera de Aire Caliente" data-watts="1100" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Dispensador de Agua Fría/Caliente" data-watts="600" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933817.png">
+                                            <option value="Deshidratador de Alimentos" data-watts="500" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Lavadora Carga Frontal" data-watts="500" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933866.png">
+                                            <option value="Lavadora Carga Superior" data-watts="400" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933866.png">
+                                            <option value="Secadora de Ropa Eléctrica" data-watts="3400" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933866.png">
+                                            <option value="Centro de Lavado (Lavadora+Secadora)" data-watts="4000" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933866.png">
+                                            <option value="Plancha de Vapor Tradicional" data-watts="1400" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933842.png">
+                                            <option value="Plancha de Vapor Vertical (Generador de Vapor)" data-watts="1800" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933842.png">
+                                            <option value="Aspiradora Canister / Convencional" data-watts="1400" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933842.png">
+                                            <option value="Aspiradora Robot (Roomba)" data-watts="40" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933842.png">
+                                            <option value="Aspiradora Inalámbrica de Mano" data-watts="150" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933842.png">
+                                            <option value="Limpiador a Vapor / Mopa Eléctrica" data-watts="1500" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933842.png">
+                                            <option value="Brilladora / Pulidora de Pisos" data-watts="400" data-img="https://cdn-icons-png.flaticon.com/512/2933/2933842.png">
+                                            <option value="Aire Acondicionado Minisplit 1 Tonelada" data-watts="1200" data-img="https://cdn-icons-png.flaticon.com/512/911/911417.png">
+                                            <option value="Aire Acondicionado Minisplit 2 Toneladas" data-watts="2400" data-img="https://cdn-icons-png.flaticon.com/512/911/911417.png">
+                                            <option value="Aire Acondicionado Portátil" data-watts="1400" data-img="https://cdn-icons-png.flaticon.com/512/911/911417.png">
+                                            <option value="Aire Acondicionado de Ventana" data-watts="1500" data-img="https://cdn-icons-png.flaticon.com/512/911/911417.png">
+                                            <option value="Ventilador de Techo" data-watts="75" data-img="https://cdn-icons-png.flaticon.com/512/1150/1150643.png">
+                                            <option value="Ventilador de Pedestal / Piso" data-watts="60" data-img="https://cdn-icons-png.flaticon.com/512/1150/1150643.png">
+                                            <option value="Ventilador de Torre" data-watts="45" data-img="https://cdn-icons-png.flaticon.com/512/1150/1150643.png">
+                                            <option value="Calefactor de Cuarzo / Radiador Eléctrico" data-watts="1500" data-img="https://cdn-icons-png.flaticon.com/512/911/911417.png">
+                                            <option value="Calefactor de Cerámica de Torre" data-watts="1800" data-img="https://cdn-icons-png.flaticon.com/512/911/911417.png">
+                                            <option value="Boiler Eléctrico / Calentador de Agua 40L" data-watts="3000" data-img="https://cdn-icons-png.flaticon.com/512/911/911417.png">
+                                            <option value="Calentador de Agua Instantáneo Eléctrico" data-watts="4500" data-img="https://cdn-icons-png.flaticon.com/512/911/911417.png">
+                                            <option value="Regadera Eléctrica" data-watts="4000" data-img="https://cdn-icons-png.flaticon.com/512/911/911417.png">
+                                            <option value="Humidificador Ultrasónico" data-watts="30" data-img="https://cdn-icons-png.flaticon.com/512/911/911417.png">
+                                            <option value="Deshumidificador de Aire" data-watts="400" data-img="https://cdn-icons-png.flaticon.com/512/911/911417.png">
+                                            <option value="Purificador de Aire HEPA" data-watts="55" data-img="https://cdn-icons-png.flaticon.com/512/911/911417.png">
+                                            <option value="Televisor LED 32 pulg." data-watts="50" data-img="https://cdn-icons-png.flaticon.com/512/3159/3159755.png">
+                                            <option value="Televisor Smart TV 55 pulg." data-watts="120" data-img="https://cdn-icons-png.flaticon.com/512/3159/3159755.png">
+                                            <option value="Televisor OLED 65+ pulg." data-watts="200" data-img="https://cdn-icons-png.flaticon.com/512/3159/3159755.png">
+                                            <option value="Consola PlayStation 5 / Xbox Series X" data-watts="210" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076992.png">
+                                            <option value="Consola Nintendo Switch (Base)" data-watts="18" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076992.png">
+                                            <option value="Computadora Gamer / PC Alto Rendimiento" data-watts="600" data-img="https://cdn-icons-png.flaticon.com/512/2004/2004699.png">
+                                            <option value="Computadora de Oficina PC" data-watts="250" data-img="https://cdn-icons-png.flaticon.com/512/2004/2004699.png">
+                                            <option value="Laptop / Portátil" data-watts="65" data-img="https://cdn-icons-png.flaticon.com/512/2991/2991148.png">
+                                            <option value="Monitor LCD/LED 24 pulg." data-watts="30" data-img="https://cdn-icons-png.flaticon.com/512/2004/2004699.png">
+                                            <option value="Proyector de Video Cine en Casa" data-watts="250" data-img="https://cdn-icons-png.flaticon.com/512/3159/3159755.png">
+                                            <option value="Barra de Sonido (Soundbar)" data-watts="60" data-img="https://cdn-icons-png.flaticon.com/512/3159/3159755.png">
+                                            <option value="Teatro en Casa 5.1 (Home Theater)" data-watts="350" data-img="https://cdn-icons-png.flaticon.com/512/3159/3159755.png">
+                                            <option value="Bocina Inteligente (Alexa / Google Nest)" data-watts="15" data-img="https://cdn-icons-png.flaticon.com/512/3159/3159755.png">
+                                            <option value="Bocina Amplificada de Fiesta" data-watts="300" data-img="https://cdn-icons-png.flaticon.com/512/3159/3159755.png">
+                                            <option value="Modem / Router WiFi" data-watts="12" data-img="https://cdn-icons-png.flaticon.com/512/2004/2004699.png">
+                                            <option value="Decodificador de TV por Cable / Satélite" data-watts="25" data-img="https://cdn-icons-png.flaticon.com/512/3159/3159755.png">
+                                            <option value="Cargador de Celular / Smartphone" data-watts="20" data-img="https://cdn-icons-png.flaticon.com/512/3659/3659898.png">
+                                            <option value="Cargador de Tablet / iPad" data-watts="30" data-img="https://cdn-icons-png.flaticon.com/512/2991/2991148.png">
+                                            <option value="Secadora de Cabello Profesional" data-watts="1800" data-img="https://cdn-icons-png.flaticon.com/512/2807/2807869.png">
+                                            <option value="Plancha Alisadora de Cabello" data-watts="180" data-img="https://cdn-icons-png.flaticon.com/512/2807/2807869.png">
+                                            <option value="Tenaza Rízadora de Cabello" data-watts="120" data-img="https://cdn-icons-png.flaticon.com/512/2807/2807869.png">
+                                            <option value="Rasuradora / Maquinilla de Afeitar" data-watts="15" data-img="https://cdn-icons-png.flaticon.com/512/2807/2807869.png">
+                                            <option value="Depiladora Eléctrica" data-watts="40" data-img="https://cdn-icons-png.flaticon.com/512/2807/2807869.png">
+                                            <option value="Cepillo de Dientes Eléctrico (Recarga)" data-watts="5" data-img="https://cdn-icons-png.flaticon.com/512/2807/2807869.png">
+                                            <option value="Hidropulsor / Irrigador Bucal" data-watts="20" data-img="https://cdn-icons-png.flaticon.com/512/2807/2807869.png">
+                                            <option value="Hidromasajeador de Pies" data-watts="100" data-img="https://cdn-icons-png.flaticon.com/512/2807/2807869.png">
+                                            <option value="Pistola de Masaje Muscular" data-watts="30" data-img="https://cdn-icons-png.flaticon.com/512/2807/2807869.png">
+                                            <option value="Sillón Masajeador Eléctrico" data-watts="180" data-img="https://cdn-icons-png.flaticon.com/512/2807/2807869.png">
+                                            <option value="Nebulizador Médico Eléctrico" data-watts="70" data-img="https://cdn-icons-png.flaticon.com/512/2807/2807869.png">
+                                            <option value="Concentrador de Oxígeno Médico" data-watts="300" data-img="https://cdn-icons-png.flaticon.com/512/2807/2807869.png">
+                                            <option value="Máquina CPAP / Salud Respiratoria" data-watts="60" data-img="https://cdn-icons-png.flaticon.com/512/2807/2807869.png">
+                                            <option value="Almohadilla / Cobija Eléctrica Térmica" data-watts="100" data-img="https://cdn-icons-png.flaticon.com/512/2807/2807869.png">
+                                            <option value="Foco Incandescente Tradicional 100W" data-watts="100" data-img="https://cdn-icons-png.flaticon.com/512/3659/3659898.png">
+                                            <option value="Foco ahorrador CFL (Pastilla)" data-watts="23" data-img="https://cdn-icons-png.flaticon.com/512/3659/3659898.png">
+                                            <option value="Foco LED 10W (Equivalente 75W)" data-watts="10" data-img="https://cdn-icons-png.flaticon.com/512/3659/3659898.png">
+                                            <option value="Lámpara de Escritorio LED" data-watts="8" data-img="https://cdn-icons-png.flaticon.com/512/3659/3659898.png">
+                                            <option value="Tira LED Ambientadora (5 metros)" data-watts="24" data-img="https://cdn-icons-png.flaticon.com/512/3659/3659898.png">
+                                            <option value="Reflector LED de Exterior" data-watts="50" data-img="https://cdn-icons-png.flaticon.com/512/3659/3659898.png">
+                                            <option value="Bomba de Agua Cisterna / Tinaco 0.5 HP" data-watts="375" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Bomba Presurizadora de Agua" data-watts="120" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Compresor de Aire Doméstico" data-watts="1500" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Hidrolavadora de Agua a Presión" data-watts="1600" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Cortadora de Césped / Podadora Eléctrica" data-watts="1200" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Desbrozadora / Orilladora Eléctrica" data-watts="500" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Taladro Eléctrico de Cable" data-watts="650" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Cargador de Herramienta Inalámbrica" data-watts="80" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Sierra Caladora Eléctrica" data-watts="500" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Esmeriladora / Pulidora Angular" data-watts="800" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Soldadora Inverter Eléctrica" data-watts="3500" data-img="https://cdn-icons-png.flaticon.com/512/3076/3076043.png">
+                                            <option value="Impresora Multifuncional de Inyección" data-watts="30" data-img="https://cdn-icons-png.flaticon.com/512/2004/2004699.png">
+                                            <option value="Impresora Láser Monocromática" data-watts="400" data-img="https://cdn-icons-png.flaticon.com/512/2004/2004699.png">
+                                            <option value="Cargador de Vehículo Eléctrico (Nivel 2)" data-watts="7200" data-img="https://cdn-icons-png.flaticon.com/512/3659/3659898.png">
+                                        </datalist>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Potencia Nominal (Watts)</label>
+                                        <input type="number" step="0.01" name="potencia" id="potenciaAparato" class="form-control font-mono" placeholder="300" required>
+                                    </div>
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-6">
+                                            <label class="form-label">Horas / Día</label>
+                                            <input type="number" step="0.1" name="horas" class="form-control font-mono" placeholder="12" required>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label">Días / Mes</label>
+                                            <input type="number" name="dias" class="form-control font-mono" value="30" required>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Ícono / Imagen URL (Opcional)</label>
+                                        <input type="url" name="imagen_url" id="imagenAparato" class="form-control" placeholder="https://...">
+                                    </div>
+                                    <button type="submit" class="btn btn-primary-pro w-100">
+                                        <i class="bi bi-plus-circle-fill me-1"></i> Agregar al Inventario
+                                    </button>
+                                </form>
+                            </div>
+
+                            <!-- PESTAÑA 2: SIMULADOR RÁPIDO -->
+                            <div class="tab-pane fade {% if simulacion %}show active{% endif %}" id="pane-simular" role="tabpanel">
+                                <p class="small text-secondary mb-3">Evalúa el impacto energético de un aparato antes de agregarlo a tu consumo real.</p>
+                                <form action="/simular" method="POST" class="accion-interna">
+                                    <div class="mb-3">
+                                        <label class="form-label">Potencia (Watts)</label>
+                                        <input type="number" step="0.01" name="potencia" class="form-control font-mono" placeholder="1500" required>
+                                    </div>
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-6">
+                                            <label class="form-label">Horas / Día</label>
+                                            <input type="number" step="0.1" name="horas" class="form-control font-mono" placeholder="2" required>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label">Días / Mes</label>
+                                            <input type="number" name="dias" class="form-control font-mono" value="30" required>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-warning w-100 fw-bold rounded-3 py-2 text-dark">
+                                        <i class="bi bi-lightning-fill me-1"></i> Calcular Simulación
+                                    </button>
+                                </form>
+
+                                {% if simulacion %}
+                                <div class="mt-3 p-3 rounded-3" style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.35);">
+                                    <div class="small text-warning fw-bold mb-1"><i class="bi bi-check2-circle me-1"></i> Proyección Simulada</div>
+                                    <div class="d-flex justify-content-between small mb-1">
+                                        <span class="text-secondary">Consumo Mensual:</span>
+                                        <span class="font-mono fw-bold text-white">{{ simulacion.kwh }} kWh</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between small">
+                                        <span class="text-secondary">Costo Estimado:</span>
+                                        <span class="font-mono fw-bold text-warning">${{ simulacion.costo }} MXN</span>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TABLA DE ELECTRODOMÉSTICOS -->
+                <div class="col-lg-8">
+                    <div class="bento-card h-100 d-flex flex-column">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                            <div>
+                                <h6 class="fw-bold text-white mb-0"><i class="bi bi-hdd-stack-fill text-info me-2"></i>Inventario Activo de Electrodomésticos</h6>
+                                <small class="text-secondary">Desglose individual de carga conectada</small>
+                            </div>
+                            <span class="badge bg-secondary bg-opacity-25 text-light font-mono px-3 py-2 rounded-pill">
+                                {{ aparatos|length }} equipo(s)
+                            </span>
+                        </div>
+
+                        <div class="table-responsive flex-grow-1">
+                            <table class="table table-hover align-middle table-enterprise mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Equipo</th>
+                                        <th>Descripción</th>
+                                        <th>Potencia</th>
+                                        <th>Uso</th>
+                                        <th>Consumo</th>
+                                        <th>Costo</th>
+                                        <th class="text-end no-imprimir">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if aparatos %}
+                                        {% for aparato in aparatos %}
+                                        <tr>
+                                            <td>
+                                                <img src="{{ aparato.imagen_url if aparato.imagen_url else 'https://cdn-icons-png.flaticon.com/512/3659/3659898.png' }}" class="device-thumb" alt="{{ aparato.nombre }}">
+                                            </td>
+                                            <td class="fw-semibold text-white">{{ aparato.nombre }}</td>
+                                            <td class="font-mono text-secondary">{{ aparato.potencia_watts }}W</td>
+                                            <td class="font-mono text-secondary">{{ aparato.horas_diarias }}h × {{ aparato.dias_mes }}d</td>
+                                            <td><span class="chip-kwh">{{ aparato.consumo_kwh_mes }} kWh</span></td>
+                                            <td><span class="chip-mxn">${{ aparato.costo_estimado_pesos }}</span></td>
+                                            <td class="text-end no-imprimir">
+                                                <div class="d-inline-flex gap-1">
+                                                    <a href="/editar/{{ aparato.id_electrodomestico }}" class="btn btn-sm btn-outline-info rounded-3 enlace-interno" title="Editar">
+                                                        <i class="bi bi-pencil-square"></i>
+                                                    </a>
+                                                    <form action="/eliminar/{{ aparato.id_electrodomestico }}" method="POST" class="accion-interna" onsubmit="return confirm('¿Eliminar {{ aparato.nombre }}?');">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-3" title="Eliminar">
+                                                            <i class="bi bi-trash3"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="7" class="text-center py-5 text-secondary">
+                                                <i class="bi bi-outlet fs-1 d-block mb-2 text-info opacity-50"></i>
+                                                <div class="fw-semibold text-light">Sin equipos en esta sesión</div>
+                                                <small>Agrega tu primer electrodoméstico desde el panel izquierdo.</small>
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-3 pt-3 border-top border-secondary border-opacity-25 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                            <span class="small fw-bold text-secondary text-uppercase">Sumatoria Total Mensual:</span>
+                            <div class="d-flex gap-2">
+                                <span class="chip-kwh fs-6">{{ totales.total_kwh }} kWh</span>
+                                <span class="chip-mxn fs-6">${{ totales.total_costo }} MXN</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FILA 3: RECIBO OFICIAL CFE + GRÁFICA DE DISTRIBUCIÓN -->
+            <div class="row g-4 mb-4" id="sec-facturacion">
+                
+                <!-- RECIBO OFICIAL BIMESTRAL -->
+                <div class="col-lg-7">
+                    <div class="bento-card h-100">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                            <div>
+                                <h6 class="fw-bold mb-0" style="color: #34d399;"><i class="bi bi-receipt-cutoff me-2"></i>Desglose de Facturación (Formato Recibo CFE)</h6>
+                                <small class="text-secondary">Proyección Bimestral Oficial (2 Meses — Escalones de Subsidio)</small>
+                            </div>
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-1 rounded-pill">Bimestre</span>
+                        </div>
+
+                        <div class="cfe-document">
+                            <div class="table-responsive">
+                                <table class="table mb-0 align-middle">
+                                    <thead class="cfe-doc-header">
+                                        <tr>
+                                            <th>Concepto</th>
+                                            <th class="text-center">Periodo (kWh)</th>
+                                            <th class="text-end">Precio</th>
+                                            <th class="text-end">Subtotal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr class="cfe-row fw-bold text-white">
+                                            <td>Energía (kWh)</td>
+                                            <td class="text-center font-mono text-info">{{ desglose_recibo.kwh_total }}</td>
+                                            <td></td>
+                                            <td></td>
+                                        </tr>
+                                        <tr class="cfe-row cfe-row-alt">
+                                            <td class="ps-4">Básico <small class="text-secondary">(0–150 kWh)</small></td>
+                                            <td class="text-center font-mono">{{ desglose_recibo.kwh_basico }}</td>
+                                            <td class="text-end font-mono text-secondary">${{ desglose_recibo.precio_basico }}</td>
+                                            <td class="text-end font-mono fw-bold text-white">${{ desglose_recibo.sub_basico }}</td>
+                                        </tr>
+                                        <tr class="cfe-row">
+                                            <td class="ps-4">Intermedio <small class="text-secondary">(151–280 kWh)</small></td>
+                                            <td class="text-center font-mono">{{ desglose_recibo.kwh_intermedio }}</td>
+                                            <td class="text-end font-mono text-secondary">${{ desglose_recibo.precio_intermedio }}</td>
+                                            <td class="text-end font-mono fw-bold text-white">${{ desglose_recibo.sub_intermedio }}</td>
+                                        </tr>
+                                        <tr class="cfe-row cfe-row-alt">
+                                            <td class="ps-4">Excedente <small class="text-secondary">(&gt;280 kWh)</small></td>
+                                            <td class="text-center font-mono">{{ desglose_recibo.kwh_excedente }}</td>
+                                            <td class="text-end font-mono text-secondary">${{ desglose_recibo.precio_excedente }}</td>
+                                            <td class="text-end font-mono fw-bold text-white">${{ desglose_recibo.sub_excedente }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="p-3" style="background: #060913; border-top: 1px solid var(--border-line);">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+                                    <span class="small text-secondary fst-italic" style="font-size: 0.75rem;">
+                                        A menor consumo bimestral, mayor porcentaje de subsidio gubernamental.
+                                    </span>
+                                    <div>
+                                        <span class="small text-secondary me-2">Subtotal Bimestral:</span>
+                                        <span class="font-mono fw-bold fs-5 text-success">${{ desglose_recibo.subtotal_energia }}</span>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 mt-2">
+                                    <i class="bi bi-house-heart-fill text-success fs-5"></i>
+                                    <div class="cfe-spectrum flex-grow-1">
+                                        <div class="cfe-pointer" id="flechaRecibo" data-porcentaje="{{ desglose_recibo.porcentaje_barra }}"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ANALÍTICA VISUAL (GRÁFICA) -->
+                <div class="col-lg-5">
+                    <div class="bento-card h-100 d-flex flex-column">
+                        <h6 class="fw-bold text-white mb-1"><i class="bi bi-pie-chart-fill text-info me-2"></i>Distribución por Equipo</h6>
+                        <small class="text-secondary mb-3">Proporción de consumo mensual (kWh)</small>
+                        <div class="flex-grow-1 d-flex align-items-center justify-content-center" style="min-height: 250px;">
+                            {% if aparatos %}
+                                <canvas id="graficaConsumo"></canvas>
+                            {% else %}
+                                <div class="text-center text-secondary small">
+                                    <i class="bi bi-bar-chart-line fs-2 d-block mb-2 opacity-50"></i>
+                                    Registra aparatos para generar el análisis gráfico.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FILA 4: CONSEJOS + BUZÓN DE ACLARACIONES Y COMENTARIOS -->
+            <div class="row g-4" id="sec-soporte">
+                <div class="col-lg-5">
+                    <div class="bento-card h-100">
+                        <h6 class="fw-bold text-success mb-3"><i class="bi bi-shield-check me-2"></i>Guía de Eficiencia Energética</h6>
+                        <div class="d-flex flex-column gap-3 small">
+                            <div class="p-3 rounded-3" style="background: rgba(16, 185, 129, 0.07); border: 1px solid rgba(16, 185, 129, 0.18);">
+                                <strong class="text-white d-block mb-1">Elimina el Consumo Vampiro</strong>
+                                <span class="text-secondary">Pantallas, consolas y cargadores conectados en reposo representan hasta el 10% del recibo bimestral.</span>
+                            </div>
+                            <div class="p-3 rounded-3" style="background: rgba(34, 211, 238, 0.07); border: 1px solid rgba(34, 211, 238, 0.18);">
+                                <strong class="text-white d-block mb-1">Optimización Térmica</strong>
+                                <span class="text-secondary">Mantener el aire acondicionado a 24 °C y revisar los empaques del refrigerador evita saltar al escalón Excedente.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-7 no-imprimir">
+                    <div class="bento-card h-100">
+                        <h6 class="fw-bold text-white mb-1"><i class="bi bi-chat-left-dots-fill text-info me-2"></i>Centro de Aclaraciones y Comentarios</h6>
+                        <p class="small text-secondary mb-3">Envía dudas sobre tarifas, aclaraciones de cálculo o sugerencias directamente a nuestro equipo.</p>
+
+                        {% if comentario_enviado %}
+                        <div class="alert alert-success alert-dismissible fade show py-2 small" role="alert">
+                            <i class="bi bi-check-circle-fill me-1"></i> <strong>¡Mensaje recibido!</strong> Tu aclaración o comentario quedó guardado en la base de datos.
+                            <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endif %}
+
+                        <form action="/comentar" method="POST" class="accion-interna">
+                            <div class="row g-2 mb-2">
+                                <div class="col-md-6">
+                                    <label class="form-label">Categoría</label>
+                                    <select name="tipo" class="form-select form-select-sm" required>
+                                        <option value="Aclaración de Tarifa / Consumo">Aclaración de Tarifa / Consumo</option>
+                                        <option value="Sugerencia de Mejora">Sugerencia de Mejora</option>
+                                        <option value="Comentario General">Comentario General</option>
+                                        <option value="Reporte de Problema">Reporte de Problema</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Remitente</label>
+                                    <input type="text" class="form-control form-control-sm opacity-75" value="{{ session['usuario_nombre'] }}" readonly>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Detalle del Mensaje</label>
+                                <textarea name="mensaje" rows="2" class="form-control form-control-sm" placeholder="Describe tu duda, aclaración o comentario..." required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary-pro btn-sm px-4">
+                                <i class="bi bi-send-fill me-1"></i> Enviar Mensaje
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Autocompletado de Watts e Imagen
+        const inputNombre = document.getElementById('nombreAparato');
+        const inputPotencia = document.getElementById('potenciaAparato');
+        const inputImagen = document.getElementById('imagenAparato');
+        const datalist = document.getElementById('listaElectrodomesticos');
+
+        if (inputNombre) {
+            inputNombre.addEventListener('input', function() {
+                const val = this.value;
+                datalist.querySelectorAll('option').forEach(opt => {
+                    if (opt.value === val) {
+                        if (opt.getAttribute('data-watts')) inputPotencia.value = opt.getAttribute('data-watts');
+                        if (opt.getAttribute('data-img')) inputImagen.value = opt.getAttribute('data-img');
+                    }
+                });
+            });
+        }
+
+        // Posición de flecha en barra de recibo CFE
+        const flechaRecibo = document.getElementById('flechaRecibo');
+        if (flechaRecibo) {
+            flechaRecibo.style.left = flechaRecibo.getAttribute('data-porcentaje') + '%';
+        }
+
+        // Gráfica de Dona Estilo Dashboard
+        const labels = JSON.parse('{{ nombres_aparatos | tojson | safe }}');
+        const dataConsumo = JSON.parse('{{ consumos_aparatos | tojson | safe }}');
+
+        if (labels.length > 0) {
+            const ctx = document.getElementById('graficaConsumo').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'kWh / mes',
+                        data: dataConsumo,
+                        backgroundColor: [
+                            '#22d3ee', '#10b981', '#f59e0b', '#3b82f6', 
+                            '#a855f7', '#ec4899', '#84cc16', '#14b8a6'
+                        ],
+                        borderColor: '#0f1626',
+                        borderWidth: 3,
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '66%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#94a3b8', padding: 14, usePointStyle: true, font: { family: 'Plus Jakarta Sans', size: 12 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Limpieza automática al cerrar pestaña o salir de la aplicación
+        let esNavegacionInterna = false;
+        document.querySelectorAll('.accion-interna').forEach(form => {
+            form.addEventListener('submit', () => { esNavegacionInterna = true; });
+        });
+        document.querySelectorAll('.enlace-interno').forEach(link => {
+            link.addEventListener('click', () => { esNavegacionInterna = true; });
+        });
+        window.addEventListener('pagehide', function() {
+            if (!esNavegacionInterna) {
+                navigator.sendBeacon('/limpiar_al_salir');
+            }
+        });
+    </script>
+</body>
+</html>
