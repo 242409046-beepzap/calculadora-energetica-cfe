@@ -61,7 +61,6 @@ def calcular_desglose_recibo_bimestral(kwh_mensual, tarifa):
     sub_excedente = round(kwh_excedente * p_excedente, 2)
     subtotal_energia = round(sub_basico + sub_intermedio + sub_excedente, 2)
 
-    # Porcentaje para la barra visual del recibo (tope visual en 400 kWh bimestrales)
     porcentaje_barra = min(max((kwh_bim / 400.0) * 100.0, 2.0), 98.0)
 
     return {
@@ -88,57 +87,74 @@ def clasificar_nivel_consumo(kwh_mensual):
     else:
         return {'texto': 'Consumo Excedente (Sin Subsidio)', 'clase': 'bg-danger text-white'}
 
+# --- MANEJADOR GLOBAL DE ERRORES (EVITA PANTALLAS 404 NOT FOUND) ---
+
+@app.errorhandler(404)
+def pagina_no_encontrada(e):
+    if 'usuario_id' in session:
+        return redirect(url_for('index'))
+    return redirect(url_for('login'))
+
 # --- RUTAS DE AUTENTICACIÓN ---
 
 @app.route('/registro', methods=['GET', 'POST'])
 def registro():
-    return login(abrir_registro=True)
+    if request.method == 'GET':
+        return render_template('login.html', abrir_registro=True)
+
+    nombre = request.form.get('nombre', '').strip()
+    correo = request.form.get('correo', '').strip()
+    password = request.form.get('password', '')
+
+    conn = obtener_conexion()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id_usuario FROM usuarios WHERE correo = %s", (correo,))
+    if cursor.fetchone():
+        cursor.close()
+        conn.close()
+        return render_template(
+            'login.html',
+            error="Este correo ya está registrado. Intenta iniciar sesión.",
+            abrir_registro=True
+        )
+
+    hashed_pw = generate_password_hash(password)
+    cursor.execute(
+        "INSERT INTO usuarios (nombre, correo, password) VALUES (%s, %s, %s)",
+        (nombre, correo, hashed_pw)
+    )
+    conn.commit()
+    nuevo_id = cursor.lastrowid
+    cursor.close()
+    conn.close()
+
+    session['usuario_id'] = nuevo_id
+    session['usuario_nombre'] = nombre
+    return redirect(url_for('index'))
 
 @app.route('/login', methods=['GET', 'POST'])
-def login(abrir_registro=False):
+def login():
     error = None
     exito = None
     if request.method == 'POST':
-        accion = request.form.get('accion')
-        if request.path == '/registro' and not accion:
-            accion = 'registro'
         correo = request.form.get('correo', '').strip()
         password = request.form.get('password', '')
 
         conn = obtener_conexion()
         cursor = conn.cursor(dictionary=True)
-
-        if accion == 'registro':
-            nombre = request.form.get('nombre', '').strip()
-            cursor.execute("SELECT id_usuario FROM usuarios WHERE correo = %s", (correo,))
-            if cursor.fetchone():
-                error = "Este correo ya está registrado. Intenta iniciar sesión."
-                abrir_registro = True
-            else:
-                hashed_pw = generate_password_hash(password)
-                cursor.execute(
-                    "INSERT INTO usuarios (nombre, correo, password) VALUES (%s, %s, %s)",
-                    (nombre, correo, hashed_pw)
-                )
-                conn.commit()
-                exito = "¡Cuenta creada correctamente! Ahora puedes iniciar sesión."
-                abrir_registro = False
-        else:
-            cursor.execute("SELECT * FROM usuarios WHERE correo = %s", (correo,))
-            usuario = cursor.fetchone()
-            if usuario and check_password_hash(usuario['password'], password):
-                session['usuario_id'] = usuario['id_usuario']
-                session['usuario_nombre'] = usuario['nombre']
-                cursor.close()
-                conn.close()
-                return redirect(url_for('index'))
-            else:
-                error = "Correo electrónico o contraseña incorrectos."
-
+        cursor.execute("SELECT * FROM usuarios WHERE correo = %s", (correo,))
+        usuario = cursor.fetchone()
         cursor.close()
         conn.close()
 
-    return render_template('login.html', error=error, exito=exito, abrir_registro=abrir_registro)
+        if usuario and check_password_hash(usuario['password'], password):
+            session['usuario_id'] = usuario['id_usuario']
+            session['usuario_nombre'] = usuario['nombre']
+            return redirect(url_for('index'))
+        else:
+            error = "Correo electrónico o contraseña incorrectos."
+
+    return render_template('login.html', error=error, exito=exito, abrir_registro=False)
 
 @app.route('/logout')
 def logout():
@@ -267,6 +283,7 @@ def agregar():
     return redirect(url_for('index'))
 
 @app.route('/editar/<int:id_electrodomestico>', methods=['GET', 'POST'])
+@app.route('/actualizar/<int:id_electrodomestico>', methods=['GET', 'POST'])
 def editar(id_electrodomestico):
     if 'usuario_id' not in session:
         return redirect(url_for('login'))
@@ -313,7 +330,7 @@ def editar(id_electrodomestico):
 
     return render_template('editar.html', aparato=aparato)
 
-@app.route('/eliminar/<int:id_electrodomestico>', methods=['POST'])
+@app.route('/eliminar/<int:id_electrodomestico>', methods=['GET', 'POST'])
 def eliminar(id_electrodomestico):
     if 'usuario_id' not in session:
         return redirect(url_for('login'))
