@@ -90,12 +90,18 @@ def clasificar_nivel_consumo(kwh_mensual):
 
 # --- RUTAS DE AUTENTICACIÓN ---
 
+@app.route('/registro', methods=['GET', 'POST'])
+def registro():
+    return login(abrir_registro=True)
+
 @app.route('/login', methods=['GET', 'POST'])
-def login():
+def login(abrir_registro=False):
     error = None
     exito = None
     if request.method == 'POST':
         accion = request.form.get('accion')
+        if request.path == '/registro' and not accion:
+            accion = 'registro'
         correo = request.form.get('correo', '').strip()
         password = request.form.get('password', '')
 
@@ -107,6 +113,7 @@ def login():
             cursor.execute("SELECT id_usuario FROM usuarios WHERE correo = %s", (correo,))
             if cursor.fetchone():
                 error = "Este correo ya está registrado. Intenta iniciar sesión."
+                abrir_registro = True
             else:
                 hashed_pw = generate_password_hash(password)
                 cursor.execute(
@@ -115,6 +122,7 @@ def login():
                 )
                 conn.commit()
                 exito = "¡Cuenta creada correctamente! Ahora puedes iniciar sesión."
+                abrir_registro = False
         else:
             cursor.execute("SELECT * FROM usuarios WHERE correo = %s", (correo,))
             usuario = cursor.fetchone()
@@ -130,7 +138,7 @@ def login():
         cursor.close()
         conn.close()
 
-    return render_template('login.html', error=error, exito=exito)
+    return render_template('login.html', error=error, exito=exito, abrir_registro=abrir_registro)
 
 @app.route('/logout')
 def logout():
