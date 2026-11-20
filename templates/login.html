@@ -184,15 +184,21 @@
                 </div>
                 {% endif %}
 
+                {% if exito %}
+                <div class="alert alert-success border-0 bg-success bg-opacity-20 text-success p-3 rounded-3 small text-center mb-4">
+                    <i class="bi bi-check-circle-fill me-1"></i> {{ exito }}
+                </div>
+                {% endif %}
+
                 <!-- Selector de Pestañas -->
                 <ul class="nav nav-pills custom-tabs nav-justified mb-4" id="authTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="login-tab" data-bs-toggle="tab" data-bs-target="#login-panel" type="button" role="tab">
+                        <button class="nav-link {% if not abrir_registro %}active{% endif %}" id="login-tab" data-bs-toggle="tab" data-bs-target="#login-panel" type="button" role="tab">
                             <i class="bi bi-box-arrow-in-right me-1"></i> Iniciar Sesión
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="register-tab" data-bs-toggle="tab" data-bs-target="#register-panel" type="button" role="tab">
+                        <button class="nav-link {% if abrir_registro %}active{% endif %}" id="register-tab" data-bs-toggle="tab" data-bs-target="#register-panel" type="button" role="tab">
                             <i class="bi bi-person-plus-fill me-1"></i> Crear Cuenta
                         </button>
                     </li>
@@ -201,7 +207,7 @@
                 <div class="tab-content" id="authTabsContent">
                     
                     <!-- Pestaña Iniciar Sesión -->
-                    <div class="tab-pane fade show active" id="login-panel" role="tabpanel">
+                    <div class="tab-pane fade {% if not abrir_registro %}show active{% endif %}" id="login-panel" role="tabpanel">
                         <form action="/login" method="POST">
                             <div class="mb-3">
                                 <label class="form-label small fw-semibold text-light">Correo Electrónico</label>
@@ -218,7 +224,7 @@
                     </div>
 
                     <!-- Pestaña Crear Cuenta -->
-                    <div class="tab-pane fade" id="register-panel" role="tabpanel">
+                    <div class="tab-pane fade {% if abrir_registro %}show active{% endif %}" id="register-panel" role="tabpanel">
                         <form action="/registro" method="POST">
                             <div class="mb-3">
                                 <label class="form-label small fw-semibold text-light">Nombre Completo</label>
